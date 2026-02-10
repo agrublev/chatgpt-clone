@@ -18,6 +18,55 @@ from agents import (
 )
 from agents.mcp.server import MCPServerStdio
 
+
+class FilteredSession:
+    """
+    Wrapper around SQLiteSession that filters out tool call items
+    with 'action' fields that are incompatible with the Responses API.
+    Preserves conversation history for display while preventing API errors.
+    """
+
+    # Item types that cause API errors (they have 'action' fields)
+    FILTERED_TYPES = {
+        "web_search_call",
+        "file_search_call",
+        "image_generation_call",
+        "code_interpreter_call",
+        "mcp_call",
+        "mcp_list_tools",
+    }
+
+    def __init__(self, session_id: str, db_path: str):
+        self._session = SQLiteSession(session_id, db_path)
+
+    async def get_items(self, limit: int | None = None):
+        """Get items, filtering out those with incompatible 'action' fields."""
+        items = await self._session.get_items(limit)
+        filtered = []
+        for item in items:
+            item_type = item.get("type")
+            # Skip tool call items that have 'action' fields
+            if item_type in self.FILTERED_TYPES:
+                continue
+            if "action" in item:
+                continue
+            filtered.append(item)
+        return filtered
+
+    async def get_all_items(self, limit: int | None = None):
+        """Get ALL items including tool calls (for display purposes)."""
+        return await self._session.get_items(limit)
+
+    async def add_items(self, items):
+        return await self._session.add_items(items)
+
+    async def pop_item(self):
+        return await self._session.pop_item()
+
+    async def clear_session(self):
+        return await self._session.clear_session()
+
+
 secret = os.environ["OPENAI_API_KEY"]
 client = OpenAI(api_key=secret)
 
@@ -26,7 +75,7 @@ VECTOR_STORE_ID = "vs_698b3c2275b081918b7a0bb21faf4aad"
 
 
 if "session" not in st.session_state:
-    st.session_state["session"] = SQLiteSession(
+    st.session_state["session"] = FilteredSession(
         "chat-history",
         "chat-gpt-clone-memory.db",
     )
@@ -34,7 +83,8 @@ session = st.session_state["session"]
 
 
 async def paint_history():
-    messages = await session.get_items()
+    # Use get_all_items to display full history including tool calls
+    messages = await session.get_all_items()
 
     for message in messages:
         if "role" in message:
@@ -336,4 +386,4 @@ with st.sidebar:
     reset = st.button("Reset memory")
     if reset:
         asyncio.run(session.clear_session())
-    st.write(asyncio.run(session.get_items()))
+    st.write(asyncio.run(session.get_all_items()))
