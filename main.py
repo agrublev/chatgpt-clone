@@ -1,4 +1,5 @@
 import dotenv
+import os
 
 dotenv.load_dotenv()
 from openai import OpenAI
@@ -17,9 +18,11 @@ from agents import (
 )
 from agents.mcp.server import MCPServerStdio
 
-client = OpenAI()
+secret = os.environ["OPENAI_API_KEY"]
+client = OpenAI(api_key=secret)
 
-VECTOR_STORE_ID = "vs_698b31bae8588191a1d04c7850eb6077"
+# VECTOR_STORE_ID = "vs_698b31bae8588191a1d04c7850eb6077"
+VECTOR_STORE_ID = "vs_698b3c2275b081918b7a0bb21faf4aad"
 
 
 if "session" not in st.session_state:
