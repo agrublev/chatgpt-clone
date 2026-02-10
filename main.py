@@ -185,6 +185,7 @@ async def run_agent(message):
                 timezone_server,
             ],
             name="ChatGPT Clone",
+            model="gpt-5.2",
             instructions="""
         You are a helpful assistant.
 
